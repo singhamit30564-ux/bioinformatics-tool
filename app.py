@@ -321,63 +321,67 @@ elif tool == "16. Advanced Graphing & Visualization":
 # ============= 17. CRISPR-CAS9 PREDICTOR (HYPER PRECISE) =============
 elif tool == "17. CRISPR-Cas9 Cut Site & Efficiency":
     st.header("🧬 CRISPR-Cas9 Cut Site & Efficiency Predictor")
-    st.markdown("Predicts SpCas9 cut sites (3bp upstream of NGG PAM) and calculates cleavage efficiency based on heuristic rules (GC content, PAM-proximal stability, poly-T avoidance).")
+    st.markdown("Predicts SpCas9 cut sites (3bp upstream of NGG PAM) and calculates cleavage efficiency based on heuristic rules.")
     
     target_dna = st.text_area("Enter Target DNA Sequence:", placeholder="ATCGATCG...", height=150, key="crispr_dna")
-    pam_seq = st.text_input("PAM Sequence:", value="NGG", help="Default is NGG for SpCas9. Use N for any nucleotide.")
     
     if st.button("🔍 Predict CRISPR Cut Sites", key="btn_crispr"):
         if target_dna:
             seq = target_dna.upper().replace('U', 'T')
-            # Convert NGG to regex: .GG
-            regex_pam = pam_seq.upper().replace('N', '.')
+            regex_pam = ".GG"  # NGG PAM for SpCas9
             
-            # Find all PAM matches
             matches = [(m.start(), m.group()) for m in re.finditer(f'(?={regex_pam})', seq)]
             
             if not matches:
-                st.warning(f"No {pam_seq} PAM sites found in the sequence.")
+                st.warning("No NGG PAM sites found in the sequence.")
             else:
                 st.success(f"Found {len(matches)} potential PAM site(s). Analyzing efficiency...")
                 
                 for idx, (pos, pam) in enumerate(matches):
-                    # Check if we have 20bp upstream for the protospacer
                     if pos >= 20:
                         protospacer = seq[pos-20:pos]
                         
-                        # --- HEURISTIC EFFICIENCY SCORING (0-100) ---
-                        score = 50 # Base score
-                        
-                        # 1. GC Content of protospacer (Optimal 40-60%)
+                        # HEURISTIC EFFICIENCY SCORING
+                        score = 50
                         gc_count = protospacer.count('G') + protospacer.count('C')
                         gc_pct = (gc_count / 20) * 100
-                        if 40 <= gc_pct <= 60: score += 20
-                        elif 30 <= gc_pct <= 70: score += 10
                         
-                        # 2. PAM-proximal region (Position 20, index 19) should be G or C for stability
-                        if protospacer[19] in ['G', 'C']: score += 15
+                        if 40 <= gc_pct <= 60:
+                            score += 20
+                        elif 30 <= gc_pct <= 70:
+                            score += 10
                         
-                        # 3. Position 1 (index 0) being G can sometimes reduce efficiency
-                        if protospacer[0] == 'G': score -= 10
+                        if protospacer[19] in ['G', 'C']:
+                            score += 15
                         
-                        # 4. Poly-T (TTTT) acts as a terminator for U6 promoter (bad for gRNA)
-                        if 'TTTT' in protospacer: score -= 25
+                        if protospacer[0] == 'G':
+                            score -= 10
                         
-                        # Clamp score between 0 and 100
+                        if 'TTTT' in protospacer:
+                            score -= 25
+                        
                         score = max(0, min(100, score))
                         
-                        # Determine tier
-                        if score >= 70: tier, color = "HIGH EFFICIENCY", "🟢"
-                        elif score >= 40: tier, color = "MODERATE EFFICIENCY", "🟡"
-                        else: tier, color = "LOW EFFICIENCY", "🔴"
+                        if score >= 70:
+                            tier, color = "HIGH EFFICIENCY", ""
+                        elif score >= 40:
+                            tier, color = "MODERATE EFFICIENCY", "🟡"
+                        else:
+                            tier, color = "LOW EFFICIENCY", "🔴"
                         
-                        # Cut site is 3bp upstream of PAM
                         cut_pos = pos - 3
                         
-                        # Display Result
                         with st.expander(f"Site #{idx+1}: Position {pos+1} (Score: {score}% {color})"):
                             col1, col2 = st.columns(2)
                             with col1:
                                 st.markdown(f"**Protospacer (20bp):** `{protospacer}`")
                                 st.markdown(f"**PAM Sequence:** `{pam}`")
-                                st.markdown(f"**Predicted Cut Site:** 
+                                st.markdown(f"**Predicted Cut Site:** Between bp {cut_pos} and {cut_pos+1}")
+                            with col2:
+                                st.metric("Efficiency Score", f"{score}%")
+                                st.write(f"**GC Content:** {gc_pct:.1f}%")
+                                st.write(f"**Prediction:** {tier}")
+                    else:
+                        st.info(f"PAM at position {pos+1} skipped (less than 20bp upstream).")
+        else:
+            st.warning("Please enter a target DNA sequence.")
