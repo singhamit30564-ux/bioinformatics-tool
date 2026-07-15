@@ -1,2 +1,2 @@
 streamlit
-biopython
+biopython==1.79
