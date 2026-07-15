@@ -5,10 +5,11 @@ from Bio.Align import PairwiseAligner
 import tempfile
 import os
 import pandas as pd
+import re
 
-st.set_page_config(page_title="Beast BioAnalyzer v3.0", page_icon="", layout="wide")
+st.set_page_config(page_title="Beast BioAnalyzer v4.0", page_icon="🧬", layout="wide")
 
-st.title(" BEAST MODE BIOINFORMATICS SUITE v3.0")
+st.title("🧬 BEAST MODE BIOINFORMATICS SUITE v4.0")
 st.markdown("---")
 
 # Sidebar Menu
@@ -28,7 +29,9 @@ tool = st.sidebar.selectbox("Choose Tool", [
     "12. Central Dogma (DNA->RNA->Protein)",
     "13. Hamming Distance",
     "14. Molecular Weight Calculator",
-    "15. Motif Finder (Pattern Search)"
+    "15. Motif Finder (Pattern Search)",
+    "16. Advanced Graphing & Visualization",
+    "17. CRISPR-Cas9 Cut Site & Efficiency"
 ])
 
 st.sidebar.markdown("---")
@@ -111,23 +114,15 @@ elif tool == "4. Codon Usage Analysis":
             for codon, count in sorted(codon_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
                 st.write(f"**{codon}**: {count} ({(count/total)*100:.2f}%)")
             
-            # --- CSV DOWNLOAD FEATURE ---
             df = pd.DataFrame(list(codon_counts.items()), columns=['Codon', 'Count'])
             df['Frequency(%)'] = (df['Count'] / total * 100).round(2)
             csv_data = df.to_csv(index=False).encode('utf-8')
-            
-            st.download_button(
-                label="📥 Download Results as CSV",
-                data=csv_data,
-                file_name='codon_usage_results.csv',
-                mime='text/csv',
-                key='download_csv_4'
-            )
+            st.download_button(label="📥 Download Results as CSV", data=csv_data, file_name='codon_usage.csv', mime='text/csv', key='dl4')
         else: st.warning("Please enter a sequence first.")
 
 # ============= 5. SEQUENCE ALIGNMENT =============
 elif tool == "5. Sequence Alignment (Global)":
-    st.header(" Sequence Alignment")
+    st.header("🧬 Sequence Alignment")
     col1, col2 = st.columns(2)
     with col1: seq1 = st.text_area("Sequence 1:", placeholder="ATCG...", height=100, key="s1_5")
     with col2: seq2 = st.text_area("Sequence 2:", placeholder="ATCG...", height=100, key="s2_5")
@@ -135,8 +130,7 @@ elif tool == "5. Sequence Alignment (Global)":
         if seq1 and seq2:
             try:
                 aligner = PairwiseAligner()
-                aligner.mode = 'global'
-                aligner.match_score = 2; aligner.mismatch_score = -1
+                aligner.mode = 'global'; aligner.match_score = 2; aligner.mismatch_score = -1
                 aligner.open_gap_score = -2; aligner.extend_gap_score = -0.5
                 best = aligner.align(seq1.upper(), seq2.upper())[0]
                 st.success(f"Alignment Score: **{best.score}**")
@@ -160,8 +154,7 @@ elif tool == "6. FASTA/FASTQ Parser":
                     st.write(f"Length: {len(record.seq)} bp")
                     if file_type == "FASTQ":
                         quals = record.letter_annotations["phred_quality"]
-                        avg_q = sum(quals) / len(quals)
-                        st.write(f"Avg Quality: {avg_q:.2f}")
+                        st.write(f"Avg Quality: {sum(quals)/len(quals):.2f}")
         except Exception as e: st.error(f"Error: {str(e)}")
         os.unlink(tmp_path)
 
@@ -173,10 +166,8 @@ elif tool == "7. Reverse Complement":
         if dna_seq:
             try:
                 seq_obj = Seq(dna_seq.upper())
-                rev_comp = seq_obj.reverse_complement()
-                col1, col2 = st.columns(2)
-                with col1: st.info(f"Original: {dna_seq.upper()}")
-                with col2: st.success(f"Reverse Complement: {rev_comp}")
+                st.info(f"Original: {dna_seq.upper()}")
+                st.success(f"Reverse Complement: {seq_obj.reverse_complement()}")
             except Exception as e: st.error(f"Error: {str(e)}")
         else: st.warning("Please enter a sequence first.")
 
@@ -224,8 +215,7 @@ elif tool == "10. ORF Finder":
         if dna_seq:
             try:
                 seq_obj = Seq(dna_seq.upper())
-                protein = seq_obj.translate(to_stop=False)
-                orfs = protein.split('*')
+                orfs = seq_obj.translate(to_stop=False).split('*')
                 st.write(f"Found {len(orfs)} potential ORF(s)")
                 for i, orf in enumerate(orfs[:5], 1):
                     if len(orf) >= 10:
@@ -241,16 +231,9 @@ elif tool == "11. Nucleotide Frequency Chart":
     if st.button("Generate Chart", key="btn11"):
         if dna_seq:
             dna_seq = dna_seq.upper()
-            counts = {
-                'A': dna_seq.count('A'),
-                'T': dna_seq.count('T'),
-                'G': dna_seq.count('G'),
-                'C': dna_seq.count('C')
-            }
-            df = pd.DataFrame(list(counts.items()), columns=['Base', 'Count'])
-            df.set_index('Base', inplace=True)
+            counts = {'A': dna_seq.count('A'), 'T': dna_seq.count('T'), 'G': dna_seq.count('G'), 'C': dna_seq.count('C')}
+            df = pd.DataFrame(list(counts.items()), columns=['Base', 'Count']).set_index('Base')
             st.bar_chart(df)
-            st.write(counts)
         else: st.warning("Please enter a sequence first.")
 
 # ============= 12. CENTRAL DOGMA =============
@@ -275,44 +258,126 @@ elif tool == "13. Hamming Distance":
     with col2: s2 = st.text_area("Sequence 2:", placeholder="ATCG", height=100, key="h2")
     if st.button("Calculate Distance", key="btn13"):
         if s1 and s2:
-            if len(s1) != len(s2):
-                st.error("Sequences must be of equal length for Hamming distance!")
+            if len(s1) != len(s2): st.error("Sequences must be of equal length!")
             else:
                 distance = sum(c1 != c2 for c1, c2 in zip(s1.upper(), s2.upper()))
                 st.success(f"Hamming Distance: **{distance}**")
-                similarity = 100 - (distance / len(s1) * 100)
-                st.info(f"Similarity: {similarity:.2f}%")
+                st.info(f"Similarity: {100 - (distance / len(s1) * 100):.2f}%")
         else: st.warning("Please enter both sequences.")
 
 # ============= 14. MOLECULAR WEIGHT =============
 elif tool == "14. Molecular Weight Calculator":
-    st.header("️ Molecular Weight Calculator")
-    seq_input = st.text_area("Enter Sequence (DNA/RNA/Protein):", placeholder="ATCG or Protein...", height=100, key="mw1")
+    st.header("⚖️ Molecular Weight Calculator")
+    seq_input = st.text_area("Enter Sequence:", placeholder="ATCG or Protein...", height=100, key="mw1")
     seq_type = st.selectbox("Select Type:", ["DNA", "RNA", "Protein"], key="mw_type")
     if st.button("Calculate Weight", key="btn14"):
         if seq_input:
             length = len(seq_input.strip())
             weights = {"DNA": 650, "RNA": 340, "Protein": 110}
-            mw = length * weights[seq_type]
-            st.success(f"Approximate Molecular Weight: **{mw:,} Daltons (Da)**")
-            st.info(f"Length: {length} {'bp' if seq_type != 'Protein' else 'amino acids'}")
+            st.success(f"Approx. Molecular Weight: **{length * weights[seq_type]:,} Daltons (Da)**")
         else: st.warning("Please enter a sequence first.")
 
 # ============= 15. MOTIF FINDER =============
 elif tool == "15. Motif Finder (Pattern Search)":
-    st.header("🔍 Motif Finder (Pattern Search)")
+    st.header("🔍 Motif Finder")
     main_seq = st.text_area("Main Sequence:", placeholder="ATCGATCG...", height=100, key="main_motif")
     motif = st.text_input("Motif to find:", placeholder="ATCG", key="motif_search")
     if st.button("Find Motif", key="btn15"):
         if main_seq and motif:
             main_seq, motif = main_seq.upper(), motif.upper()
             positions = [i+1 for i in range(len(main_seq)) if main_seq.startswith(motif, i)]
-            if positions:
-                st.success(f"Found {len(positions)} occurrence(s) at positions: {positions}")
-            else:
-                st.info("Motif not found in the sequence.")
-        else: st.warning("Please enter both the main sequence and the motif.")
+            if positions: st.success(f"Found {len(positions)} occurrence(s) at positions: {positions}")
+            else: st.info("Motif not found.")
+        else: st.warning("Please enter both sequences.")
 
-# Footer
-st.markdown("---")
-st.markdown("### 🚀 Beast Mode Bioinformatics Suite v3.0 | Built with Streamlit + Biopython ")
+# ============= 16. ADVANCED GRAPHING =============
+elif tool == "16. Advanced Graphing & Visualization":
+    st.header("📊 Advanced Graphing & Visualization")
+    graph_type = st.selectbox("Select Graph Type:", ["Amino Acid Composition", "GC Content Sliding Window"])
+    
+    if graph_type == "Amino Acid Composition":
+        protein_seq = st.text_area("Enter Protein Sequence:", placeholder="MKTIIALSY...", height=100, key="aa_graph")
+        if st.button("Generate Composition Chart", key="btn_aa"):
+            if protein_seq:
+                protein_seq = protein_seq.upper().replace('*', '')
+                aa_counts = {}
+                for aa in protein_seq: aa_counts[aa] = aa_counts.get(aa, 0) + 1
+                df = pd.DataFrame(list(aa_counts.items()), columns=['Amino_Acid', 'Count']).sort_values('Count', ascending=False).set_index('Amino_Acid')
+                st.bar_chart(df)
+    
+    elif graph_type == "GC Content Sliding Window":
+        dna_seq = st.text_area("Enter DNA Sequence:", placeholder="ATCGATCG...", height=150, key="gc_graph")
+        window_size = st.slider("Window Size:", 10, 100, 50)
+        if st.button("Generate GC Graph", key="btn_gc"):
+            if dna_seq:
+                dna_seq = dna_seq.upper().replace('U', 'T')
+                gc_values, positions = [], []
+                for i in range(0, len(dna_seq) - window_size + 1, 10):
+                    window = dna_seq[i:i+window_size]
+                    gc_values.append((window.count('G') + window.count('C')) / window_size * 100)
+                    positions.append(i + window_size//2)
+                st.line_chart(pd.DataFrame({'GC_Content': gc_values}, index=positions))
+
+# ============= 17. CRISPR-CAS9 PREDICTOR (HYPER PRECISE) =============
+elif tool == "17. CRISPR-Cas9 Cut Site & Efficiency":
+    st.header("🧬 CRISPR-Cas9 Cut Site & Efficiency Predictor")
+    st.markdown("Predicts SpCas9 cut sites (3bp upstream of NGG PAM) and calculates cleavage efficiency based on heuristic rules (GC content, PAM-proximal stability, poly-T avoidance).")
+    
+    target_dna = st.text_area("Enter Target DNA Sequence:", placeholder="ATCGATCG...", height=150, key="crispr_dna")
+    pam_seq = st.text_input("PAM Sequence:", value="NGG", help="Default is NGG for SpCas9. Use N for any nucleotide.")
+    
+    if st.button("🔍 Predict CRISPR Cut Sites", key="btn_crispr"):
+        if target_dna:
+            seq = target_dna.upper().replace('U', 'T')
+            # Convert NGG to regex: .GG
+            regex_pam = pam_seq.upper().replace('N', '.')
+            
+            # Find all PAM matches
+            matches = [(m.start(), m.group()) for m in re.finditer(f'(?={regex_pam})', seq)]
+            
+            if not matches:
+                st.warning(f"No {pam_seq} PAM sites found in the sequence.")
+            else:
+                st.success(f"Found {len(matches)} potential PAM site(s). Analyzing efficiency...")
+                
+                for idx, (pos, pam) in enumerate(matches):
+                    # Check if we have 20bp upstream for the protospacer
+                    if pos >= 20:
+                        protospacer = seq[pos-20:pos]
+                        
+                        # --- HEURISTIC EFFICIENCY SCORING (0-100) ---
+                        score = 50 # Base score
+                        
+                        # 1. GC Content of protospacer (Optimal 40-60%)
+                        gc_count = protospacer.count('G') + protospacer.count('C')
+                        gc_pct = (gc_count / 20) * 100
+                        if 40 <= gc_pct <= 60: score += 20
+                        elif 30 <= gc_pct <= 70: score += 10
+                        
+                        # 2. PAM-proximal region (Position 20, index 19) should be G or C for stability
+                        if protospacer[19] in ['G', 'C']: score += 15
+                        
+                        # 3. Position 1 (index 0) being G can sometimes reduce efficiency
+                        if protospacer[0] == 'G': score -= 10
+                        
+                        # 4. Poly-T (TTTT) acts as a terminator for U6 promoter (bad for gRNA)
+                        if 'TTTT' in protospacer: score -= 25
+                        
+                        # Clamp score between 0 and 100
+                        score = max(0, min(100, score))
+                        
+                        # Determine tier
+                        if score >= 70: tier, color = "HIGH EFFICIENCY", "🟢"
+                        elif score >= 40: tier, color = "MODERATE EFFICIENCY", "🟡"
+                        else: tier, color = "LOW EFFICIENCY", "🔴"
+                        
+                        # Cut site is 3bp upstream of PAM
+                        cut_pos = pos - 3
+                        
+                        # Display Result
+                        with st.expander(f"Site #{idx+1}: Position {pos+1} (Score: {score}% {color})"):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.markdown(f"**Protospacer (20bp):** `{protospacer}`")
+                                st.markdown(f"**PAM Sequence:** `{pam}`")
+                                st.markdown(f"**Predicted Cut Site:** 
