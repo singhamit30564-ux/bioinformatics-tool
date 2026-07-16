@@ -2,7 +2,7 @@ import streamlit as st
 from Bio.Seq import Seq
 from Bio import SeqIO
 from Bio.Align import PairwiseAligner
-from Bio.SeqUtils import molecular_weight, GC_content
+from Bio.SeqUtils import gc_content, molecular_weight
 import tempfile
 import os
 import pandas as pd
@@ -15,7 +15,7 @@ st.title("🧬 BEAST MODE BIOINFORMATICS SUITE v5.0")
 st.markdown("---")
 
 # Sidebar Menu
-st.sidebar.header("🔬 Tools")
+st.sidebar.header(" Tools")
 tool = st.sidebar.selectbox("Choose Tool", [
     "1. DNA ↔ RNA Conversion",
     "2. RNA → Protein Translation",
@@ -184,20 +184,20 @@ elif tool == "7. Reverse Complement":
 
 # ============= 8. GC CONTENT & TM =============
 elif tool == "8. GC Content & Melting Temp":
-    st.header("🌡️ GC Content & Melting Temperature")
+    st.header("️ GC Content & Melting Temperature")
     dna_seq = st.text_area("Enter DNA Sequence:", placeholder="ATCG...", height=100, key="dna8")
     if st.button("Calculate GC & Tm", key="btn8"):
         if dna_seq:
             dna_seq = dna_seq.upper().replace('U', 'T')
             length = len(dna_seq)
-            gc_content = GC_content(dna_seq)
+            gc_percentage = gc_content(dna_seq) * 100  # FIXED: Convert fraction to percentage
             gc_count = dna_seq.count('G') + dna_seq.count('C')
             tm = 64.9 + 41 * (gc_count - 16.4) / length if length >= 14 else (gc_count * 4) + ((length - gc_count) * 2)
             col1, col2, col3 = st.columns(3)
             with col1: st.metric("Length", f"{length} bp")
-            with col2: st.metric("GC Content", f"{gc_content:.2f}%")
+            with col2: st.metric("GC Content", f"{gc_percentage:.2f}%")
             with col3: st.metric("Melting Temp (Tm)", f"{tm:.1f}°C")
-            if 40 <= gc_content <= 60: st.success("Optimal GC content (40-60%)")
+            if 40 <= gc_percentage <= 60: st.success("Optimal GC content (40-60%)")
             else: st.warning("Non-optimal GC content")
         else: st.warning("Please enter a sequence first.")
 
@@ -291,7 +291,7 @@ elif tool == "14. Molecular Weight Calculator":
 
 # ============= 15. MOTIF FINDER =============
 elif tool == "15. Motif Finder (Pattern Search)":
-    st.header("🔍 Motif Finder")
+    st.header(" Motif Finder")
     main_seq = st.text_area("Main Sequence:", placeholder="ATCGATCG...", height=100, key="main_motif")
     motif = st.text_input("Motif to find:", placeholder="ATCG", key="motif_search")
     if st.button("Find Motif", key="btn15"):
@@ -304,7 +304,7 @@ elif tool == "15. Motif Finder (Pattern Search)":
 
 # ============= 16. ADVANCED GRAPHING =============
 elif tool == "16. Advanced Graphing & Visualization":
-    st.header("📊 Advanced Graphing & Visualization")
+    st.header(" Advanced Graphing & Visualization")
     graph_type = st.selectbox("Select Graph Type:", ["Amino Acid Composition", "GC Content Sliding Window", "Nucleotide Distribution"])
     
     if graph_type == "Amino Acid Composition":
@@ -326,7 +326,8 @@ elif tool == "16. Advanced Graphing & Visualization":
                 gc_values, positions = [], []
                 for i in range(0, len(dna_seq) - window_size + 1, 10):
                     window = dna_seq[i:i+window_size]
-                    gc_values.append(GC_content(window))
+                    gc_percentage = gc_content(window) * 100  # FIXED: Convert fraction to percentage
+                    gc_values.append(gc_percentage)
                     positions.append(i + window_size//2)
                 st.line_chart(pd.DataFrame({'GC_Content': gc_values}, index=positions))
     
@@ -378,8 +379,4 @@ elif tool == "17. CRISPR-Cas9 Cut Site & Efficiency":
                             st.markdown(f"**Protospacer:** `{protospacer}`")
                             st.markdown(f"**PAM:** `{pam}`")
                             st.markdown(f"**Cut Site:** Between bp {cut_pos} and {cut_pos+1}")
-                            st.write(f"**GC Content:** {gc_pct:.1f}% | **Efficiency:** {score}%")
-        else:
-            st.warning("Please enter a target DNA sequence.")
-
-# ============= 
+                            st.write(f"**GC Co
