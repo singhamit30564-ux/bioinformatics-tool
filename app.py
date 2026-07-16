@@ -380,4 +380,18 @@ elif tool == "17. CRISPR-Cas9 Cut Site & Efficiency":
                             with col1:
                                 st.markdown(f"**Protospacer (20bp):** `{protospacer}`")
                                 st.markdown(f"**PAM Sequence:** `{pam}`")
-                                st.markdown(f"**Predicted Cut Site:** 
+                                st.markdown(f"**Predicted Cut Site:** `")
+st.markdown(f"**Predicted Cut Site:** Between bp {cut_pos} and {cut_pos+1}")
+            with col2:
+                st.metric("Efficiency Score", f"{score}%")
+                st.write(f"**GC Content:** {gc_pct:.1f}%")
+                st.write(f"**Prediction:** {tier}")
+        else:
+            st.info(f"PAM at position {pos+1} skipped (less than 20bp upstream for protospacer).")
+else:
+    st.warning("Please enter a target DNA sequence.")
+
+# Footer
+st.markdown("---")
+st.markdown("###  Titan Bioinformatics Suite v5.0 | Built with Streamlit + Biopython 🧬")
+st.markdown("© 2026 Titan Bioinformatics | Founded by Shivay Singh")
