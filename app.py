@@ -418,4 +418,193 @@ elif tool == "17. CRISPR-Cas9 Cut Site & Efficiency":
                         elif 30 <= gc_pct <= 70: 
                             score += 10
                         if protospacer[19] in ['G', 'C']: 
+
+# ============= 18. PHYLOGENETIC DISTANCE MATRIX =============
+elif tool == "18. Phylogenetic Distance Matrix":
+    st.header("🌳 Phylogenetic Distance Matrix")
+    st.markdown("Calculate p-distance between multiple sequences for phylogenetic analysis.")
+    
+    fasta_file = st.file_uploader("Upload FASTA file with multiple sequences:", type=['fasta', 'fa'], key="phylo")
+    
+    if fasta_file:
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.fasta') as tmp:
+                tmp.write(fasta_file.getvalue())
+                tmp_path = tmp.name
+            
+            records = list(SeqIO.parse(tmp_path, "fasta"))
+            n = len(records)
+            
+            if n < 2:
+                st.warning("Please upload at least 2 sequences.")
+            else:
+                st.success(f"Loaded {n} sequences. Calculating distance matrix...")
+                
+                dist_matrix = np.zeros((n, n))
+                for i in range(n):
+                    for j in range(i+1, n):
+                        seq1, seq2 = str(records[i].seq).upper(), str(records[j].seq).upper()
+                        min_len = min(len(seq1), len(seq2))
+                        mismatches = sum(seq1[k] != seq2[k] for k in range(min_len))
+                        dist = mismatches / min_len
+                        dist_matrix[i, j] = dist_matrix[j, i] = dist
+                
+                df_dist = pd.DataFrame(dist_matrix, index=[r.id for r in records], columns=[r.id for r in records])
+                st.write("### Distance Matrix (P-distance)")
+                st.dataframe(df_dist.round(4))
+                
+                csv = df_dist.to_csv().encode('utf-8')
+                st.download_button(" Download Distance Matrix CSV", csv, "distance_matrix.csv", "text/csv")
+            
+            os.unlink(tmp_path)
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
+
+# ============= 19. PCR PRIMER DESIGNER =============
+elif tool == "19. PCR Primer Designer":
+    st.header("🧬 PCR Primer Designer")
+    st.markdown("Design primers based on sequence with optimal Tm and GC content.")
+    
+    template = st.text_area("Enter Template DNA Sequence:", placeholder="ATCG...", height=150, key="primer_template")
+    target_tm = st.slider("Target Tm (°C):", 50, 65, 60)
+    primer_len = st.slider("Primer Length (bp):", 18, 25, 20)
+    
+    if st.button("🎯 Design Primers", key="btn_primer"):
+        if template:
+            template = template.upper().replace('U', 'T')
+            st.success(f"Template Length: {len(template)} bp")
+            
+            fwd_primer = template[:primer_len]
+            fwd_gc_count = fwd_primer.count('G') + fwd_primer.count('C')
+            fwd_tm = 64.9 + 41 * (fwd_gc_count - 16.4) / primer_len
+            fwd_gc = (fwd_gc_count / primer_len) * 100
+            
+            rev_seq = template[-primer_len:]
+            rev_primer = str(Seq(rev_seq).reverse_complement())
+            rev_gc_count = rev_primer.count('G') + rev_primer.count('C')
+            rev_tm = 64.9 + 41 * (rev_gc_count - 16.4) / primer_len
+            rev_gc = (rev_gc_count / primer_len) * 100
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("Forward Primer (5'→3')")
+                st.code(fwd_primer, language="text")
+                st.write(f"Tm: {fwd_tm:.1f}°C | GC: {fwd_gc:.1f}%")
+                if abs(fwd_tm - target_tm) <= 3:
+                    st.success("✅ Optimal Tm")
+                else:
+                    st.warning("⚠️ Tm deviation")
+            
+            with col2:
+                st.subheader("Reverse Primer (5'→3')")
+                st.code(rev_primer, language="text")
+                st.write(f"Tm: {rev_tm:.1f}°C | GC: {rev_gc:.1f}%")
+                if abs(rev_tm - target_tm) <= 3:
+                    st.success("✅ Optimal Tm")
+                else:
+                    st.warning("⚠️ Tm deviation")
+            
+            product_size = len(template)
+            st.info(f"Expected PCR Product Size: ~{product_size} bp")
+        else:
+            st.warning("Please enter a template sequence.")
+
+# ============= 20. TRANSLATION TABLE SELECTOR =============
+elif tool == "20. Translation Table Selector":
+    st.header("🔤 Translation Table Selector")
+    st.markdown("Translate DNA/RNA using different genetic codes.")
+    
+    seq_input = st.text_area("Enter DNA/RNA Sequence:", placeholder="ATGCGA...", height=100, key="trans_seq")
+    
+    genetic_tables = {
+        "1 - Standard": 1,
+        "2 - Vertebrate Mitochondrial": 2,
+        "3 - Yeast Mitochondrial": 3,
+        "4 - Mold Mitochondrial": 4,
+        "5 - Invertebrate Mitochondrial": 5,
+        "11 - Bacterial": 11,
+        "12 - Alternative Yeast": 12,
+        "13 - Ascidian Mitochondrial": 13,
+        "14 - Alternative Flatworm": 14,
+        "16 - Chlorophycean Mitochondrial": 16
+    }
+    
+    selected_table = st.selectbox("Select Genetic Code:", list(genetic_tables.keys()))
+    
+    if st.button("Translate", key="btn_trans"):
+        if seq_input:
+            try:
+                seq_obj = Seq(seq_input.upper().replace('U', 'T'))
+                table_id = genetic_tables[selected_table]
+                protein = seq_obj.translate(table=table_id, to_stop=False)
+                
+                st.success(f"Translation using {selected_table}:")
+                st.code(str(protein), language="text")
+                st.write(f"Protein Length: {len(protein)} amino acids")
+                
+                if table_id != 1:
+                    std_protein = seq_obj.translate(table=1, to_stop=False)
+                    if str(protein) != str(std_protein):
+                        st.info("⚠️ This genetic code produces different amino acids than Standard code")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+        else:
+            st.warning("Please enter a sequence.")
+
+# ============= 21. SEQUENCE STATISTICS =============
+elif tool == "21. Sequence Statistics":
+    st.header("📊 Comprehensive Sequence Statistics")
+    
+    seq_input = st.text_area("Enter DNA/RNA/Protein Sequence:", placeholder="ATCG...", height=150, key="stats_seq")
+    seq_type = st.radio("Sequence Type:", ["DNA", "RNA", "Protein"], key="stats_type")
+    
+    if st.button("Analyze Statistics", key="btn_stats"):
+        if seq_input:
+            seq = seq_input.upper().replace('U', 'T') if seq_type != "Protein" else seq_input.upper()
+            length = len(seq)
+            
+            st.subheader("Basic Statistics")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1: 
+                st.metric("Length", f"{length} {'bp' if seq_type != 'Protein' else 'aa'}")
+            with col2: 
+                if seq_type != "Protein":
+                    gc_percentage = GC(seq)  # Using GC() for Biopython 1.79
+                    st.metric("GC Content", f"{gc_percentage:.2f}%")
+            with col3:
+                if seq_type == "DNA":
+                    at = (seq.count('A') + seq.count('T')) / length * 100
+                    st.metric("AT Content", f"{at:.2f}%")
+            with col4:
+                if seq_type != "Protein":
+                    mw = molecular_weight(Seq(seq), seq_type.lower())
+                    st.metric("Molecular Weight", f"{mw:,.0f} Da")
+            
+            if seq_type != "Protein":
+                st.subheader("Nucleotide Composition")
+                counts = {'A': seq.count('A'), 'T': seq.count('T'), 'G': seq.count('G'), 'C': seq.count('C')}
+                df = pd.DataFrame(list(counts.items()), columns=['Base', 'Count', 'Percentage'])
+                df['Percentage'] = (df['Count'] / length * 100).round(2)
+                st.dataframe(df, hide_index=True)
+                
+                if seq_type == "DNA":
+                    st.subheader("Chargaff's Rules Check")
+                    a_t_ratio = seq.count('A') / seq.count('T') if seq.count('T') > 0 else 0
+                    g_c_ratio = seq.count('G') / seq.count('C') if seq.count('C') > 0 else 0
+                    st.write(f"A/T Ratio: {a_t_ratio:.3f} (should be ~1.0)")
+                    st.write(f"G/C Ratio: {g_c_ratio:.3f} (should be ~1.0)")
+                    if 0.9 <= a_t_ratio <= 1.1 and 0.9 <= g_c_ratio <= 1.1:
+                        st.success("✅ Sequence follows Chargaff's rules (double-stranded DNA)")
+                    else:
+                        st.warning("⚠️ Sequence may be single-stranded or have bias")
+            else:
+                st.subheader("Amino Acid Composition")
+                aa_counts = {}
+                for aa in seq:
+                    aa_counts[aa] = aa_counts.get(aa, 0) + 1
+                df_aa = pd.DataFrame(list(aa_counts.items()), columns=['Amino_Acid', 'Count', 'Percentage'])
+                df_aa['Percentage'] = (df_aa['Count'] / length * 100).round(2)
+                st.dataframe(df_aa.sort_values('Count', ascending=False), hide_index=True)
+        else:
+            st.warning("Please enter a sequence.")
                      
