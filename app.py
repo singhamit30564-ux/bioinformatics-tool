@@ -607,4 +607,8 @@ elif tool == "21. Sequence Statistics":
                 st.dataframe(df_aa.sort_values('Count', ascending=False), hide_index=True)
         else:
             st.warning("Please enter a sequence.")
+# Footer
+st.markdown("---")
+st.markdown("### 🚀 Titan Bioinformatics Suite v5.0 | Built with Streamlit + Biopython 🧬")
+st.markdown("© 2026 Titan Bioinformatics | Founded by Shivay Singh")
                      
