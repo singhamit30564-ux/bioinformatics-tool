@@ -2,7 +2,7 @@ import streamlit as st
 from Bio.Seq import Seq
 from Bio import SeqIO
 from Bio.Align import PairwiseAligner
-from Bio.SeqUtils import gc_content, molecular_weight
+from Bio.SeqUtils import GC, molecular_weight
 import tempfile
 import os
 import pandas as pd
@@ -70,7 +70,7 @@ if tool == "1. DNA ↔ RNA Conversion":
 
 # ============= 2. PROTEIN TRANSLATION =============
 elif tool == "2. RNA → Protein Translation":
-    st.header("🧬 RNA → Protein Translation")
+    st.header(" RNA → Protein Translation")
     rna_seq = st.text_area("Enter RNA Sequence:", placeholder="AUGCGAUAA...", height=100, key="rna2")
     table = st.selectbox("Genetic Code:", ["Standard", "Vertebrate Mitochondrial", "Invertebrate Mitochondrial", "Bacterial"])
     table_map = {"Standard": 1, "Vertebrate Mitochondrial": 2, "Invertebrate Mitochondrial": 5, "Bacterial": 11}
@@ -90,7 +90,7 @@ elif tool == "2. RNA → Protein Translation":
 
 # ============= 3. MUTATION DETECTION =============
 elif tool == "3. Mutation Detection":
-    st.header("🔬 Mutation Detection")
+    st.header(" Mutation Detection")
     col1, col2 = st.columns(2)
     with col1: 
         original = st.text_area("Original Sequence:", placeholder="ATCGATCG...", key="orig3")
@@ -138,7 +138,7 @@ elif tool == "4. Codon Usage Analysis":
             df = pd.DataFrame(list(codon_counts.items()), columns=['Codon', 'Count'])
             df['Frequency(%)'] = (df['Count'] / total * 100).round(2)
             csv_data = df.to_csv(index=False).encode('utf-8')
-            st.download_button(label="📥 Download Results as CSV", data=csv_data, file_name='codon_usage.csv', mime='text/csv', key='dl4')
+            st.download_button(label=" Download Results as CSV", data=csv_data, file_name='codon_usage.csv', mime='text/csv', key='dl4')
         else: 
             st.warning("Please enter a sequence first.")
 
@@ -170,7 +170,7 @@ elif tool == "5. Sequence Alignment (Global)":
 
 # ============= 6. FASTA/FASTQ PARSER =============
 elif tool == "6. FASTA/FASTQ Parser":
-    st.header("📄 File Parser")
+    st.header(" File Parser")
     file_type = st.radio("Select File Type:", ["FASTA", "FASTQ"], key="radio6")
     uploaded_file = st.file_uploader(f"Upload {file_type} file", type=['fasta', 'fa', 'fastq', 'fq'], key="up6")
     
@@ -210,13 +210,13 @@ elif tool == "7. Reverse Complement":
 
 # ============= 8. GC CONTENT & TM =============
 elif tool == "8. GC Content & Melting Temp":
-    st.header("🌡️ GC Content & Melting Temperature")
+    st.header("️ GC Content & Melting Temperature")
     dna_seq = st.text_area("Enter DNA Sequence:", placeholder="ATCG...", height=100, key="dna8")
     if st.button("Calculate GC & Tm", key="btn8"):
         if dna_seq:
             dna_seq = dna_seq.upper().replace('U', 'T')
             length = len(dna_seq)
-            gc_percentage = gc_content(dna_seq) * 100
+            gc_percentage = GC(dna_seq)  # FIXED: GC() returns percentage directly
             gc_count = dna_seq.count('G') + dna_seq.count('C')
             tm = 64.9 + 41 * (gc_count - 16.4) / length if length >= 14 else (gc_count * 4) + ((length - gc_count) * 2)
             col1, col2, col3 = st.columns(3)
@@ -274,7 +274,7 @@ elif tool == "10. ORF Finder":
 
 # ============= 11. NUCLEOTIDE FREQUENCY =============
 elif tool == "11. Nucleotide Frequency Chart":
-    st.header("📊 Nucleotide Frequency Chart")
+    st.header(" Nucleotide Frequency Chart")
     dna_seq = st.text_area("Enter DNA Sequence:", placeholder="ATCG...", height=100, key="dna11")
     if st.button("Generate Chart", key="btn11"):
         if dna_seq:
@@ -374,7 +374,7 @@ elif tool == "16. Advanced Graphing & Visualization":
                 gc_values, positions = [], []
                 for i in range(0, len(dna_seq) - window_size + 1, 10):
                     window = dna_seq[i:i+window_size]
-                    gc_percentage = gc_content(window) * 100
+                    gc_percentage = GC(window)  # FIXED: GC() returns percentage directly
                     gc_values.append(gc_percentage)
                     positions.append(i + window_size//2)
                 st.line_chart(pd.DataFrame({'GC_Content': gc_values}, index=positions))
@@ -395,7 +395,7 @@ elif tool == "17. CRISPR-Cas9 Cut Site & Efficiency":
     
     target_dna = st.text_area("Enter Target DNA Sequence:", placeholder="ATCGATCG...", height=150, key="crispr_dna")
     
-    if st.button("🔍 Predict CRISPR Cut Sites", key="btn_crispr"):
+    if st.button(" Predict CRISPR Cut Sites", key="btn_crispr"):
         if target_dna:
             seq = target_dna.upper().replace('U', 'T')
             regex_pam = ".GG"
@@ -418,5 +418,4 @@ elif tool == "17. CRISPR-Cas9 Cut Site & Efficiency":
                         elif 30 <= gc_pct <= 70: 
                             score += 10
                         if protospacer[19] in ['G', 'C']: 
-                            score += 15
-                 
+                     
