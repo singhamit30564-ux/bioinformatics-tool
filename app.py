@@ -379,4 +379,4 @@ elif tool == "17. CRISPR-Cas9 Cut Site & Efficiency":
                             st.markdown(f"**Protospacer:** `{protospacer}`")
                             st.markdown(f"**PAM:** `{pam}`")
                             st.markdown(f"**Cut Site:** Between bp {cut_pos} and {cut_pos+1}")
-                            st.write(f"**GC Co
+                            st.write(f"**GC Content:** {gc_pct:.1f}% | **Efficiency:** {score}%")
